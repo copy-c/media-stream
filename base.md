@@ -56,6 +56,9 @@ https://blog.csdn.net/leixiaohua1020/article/details/8652605
 
 
 # webrtc交互过程  
+## 交互
 
+## API
+https://developer.mozilla.org/zh-CN/docs/Web/API/WebRTC_API
 
 音视频基础知识, 视频封装和编码, 音频采样编码等概念
