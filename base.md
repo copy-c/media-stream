@@ -49,17 +49,13 @@ https://blog.csdn.net/leixiaohua1020/article/details/15811977
 1.编码 YUV -> H.264 encode   
 libavcodec  
 2.解码 H.264 -> YUV decode    
-
-
-
 ## 官方文档  
+https://github.com/FFmpeg/FFmpeg/tree/master/doc
 ## 简单的example  
+https://blog.csdn.net/leixiaohua1020/article/details/8652605
+
 
 # webrtc交互过程  
 
 
-* yuv420p, rgba内存布局
-* ffmpeg工具, 官方文档, 简单的example
-* rtmp协议, rtmp推流拉流
-* webrtc交互过程
 音视频基础知识, 视频封装和编码, 音频采样编码等概念
