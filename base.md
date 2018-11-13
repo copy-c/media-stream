@@ -191,6 +191,120 @@ AVFrame
     uint8_t motion_subsample_log2; // 一个宏块中的运动矢量采样个数，取log
 }
 ```
+## 常用函数
+```c
+1.
+// 调用libavcodec里的其他函数前调用，一般在程序启动或模块初始化时调用
+void avcodec_init(void);
+
+2.
+// 初始化libavformat和注册所有的muxers、demuxers、protocols
+// 一般在调用avcodec_init后调用该方法
+void av_register_all(void);
+// 或使用其他函数单独注册
+av_register_input_format();
+av_register_output_format();
+av_register_protocol();
+
+3.
+// 分配一个AVFormatContext结构，申请内存并进行简单初始化
+AVFormatContext *avformat_alloc_context(void);
+// 配套释放
+void avformat_free_context(AVFormatContext *s);
+
+4.
+// 为I/O缓存申请并初始化一个结构
+AVIOContext *avio_alloc_context(unsigned char *buffer, // 必须是av_malloc() 分配
+                                int buffer_size, 
+                                int write_flag, // 缓存可写为1，否则为0
+                                void *opaque, // 指针，用于回调
+                                int (*read_packet), // 读包函数指针
+                                int (*write_packet), // 写包函数指针
+                                int64_t (*seek)); // seek文件函数指针
+// 配套释放
+av_free();
+
+5.
+// 以方式打开一个媒体文件
+int av_open_input_file(AVFormatContext **ic_ptr, // 输入文件容器
+                       const char *filename, // 输入文件名
+                       AVInputFormat *fmt, // 输入文件格式
+                       int buf_size, // 缓冲大小
+                       AVFormatParameters *ap); // 格式参数
+
+// 关闭
+void av_close_input_file(AVFormatContext *s) // 用此方法关闭后不再需要使用free释放
+
+6.
+// 通过读取媒体文件中的包来获取媒体文件中的流信息
+int av_find_stream_info(AVFormatContext *ci)
+
+7.
+// 通过code id查找一个已经注册的音视频解码器
+// 查找之前必须先调用av_register_all注册所有支持的解码器
+// 查找成功返回解码器指针，否则返回NULL
+// 解码器保存在一个链表中，函数从头到尾遍历链表
+AVCodec *avcodec_find_decoder(enum CodecID id);
+// 通过名字来查找一个已经注册的音视频解码器
+AVCodec *avcodec_find_decoder_by_name(constchar *name);
+
+8.
+// 通过id查找一个已经注册的音视频编码器
+AVCodec *avcodec_find_encoder(enum CodecID id);
+// 通过名字
+AVCodec *avcodec_find_encoder_by_name(constchar *name);
+
+9.
+// 使用给定的AVCodec初始化AVCodeContext
+int avcodec_open(AVCodecContext *avctx, AVCodec *codec);
+
+10.
+// 返回一个已经注册的最合适的输出格式
+AVOutputFormat *av_guess_format(const char *short_name,
+                                const char *filename,
+                                const char *mime_type);
+
+11.
+// 为媒体文件添加一个流，一般作为输出的媒体文件容器添加音视频流
+AVStream *av_new_stream(AVFormatContext *s, int id);
+
+12.
+// 检查初始化过程中设置的参数是否符合规范
+void dump_format(AVFormatContext *ic,
+                int index,
+                const char *url,
+                int is_output);
+
+13.
+// 设置初始化参数
+int av_set_parameters(AVFormatContext *s, AVFormatParameters *ap);
+
+14.
+// 把流头信息写入到媒体文件中
+int av_write_header(AVFormatContext *s);
+
+15.
+// 使用默认值初始化AVPacket
+void av_init_packet(AVPacket *pkt);
+// 释放
+void av_free_packet(AVPacket *pkt);
+
+16.
+// 从输入源文件容器中读取一个AVPacket数据包
+int av_read_frame(AVFormatContext *s, AVPacket *pkt);
+
+17.
+// 解码AVPacket视频流
+int avcodec_decode_video2(AVCodecContext *avctx, 
+                          AVFrame *picture,
+                          int *got_picture_ptr,
+                          AVPacket *avpkt);
+// 解码AVPacket音频流
+int avcodec_decode_audio3(AVCodecContext *avctx, 
+                          int16_t *samples,
+                          int *frame_size_ptr,
+                          AVPacket *avpkt);
+```
 
 ## 官方文档  
 https://github.com/FFmpeg/FFmpeg/tree/master/doc
