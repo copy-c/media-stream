@@ -6,6 +6,12 @@
  * AVIOContext read callback.
  * @example avio_reading.c
  */
+
+// 总体流程：
+// 1）文件内容读入内存buffer中
+// 2）由buffer创建AVIOContext
+// 3）由AVIOContext创建AVFormatContext进行后序操作
+
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
