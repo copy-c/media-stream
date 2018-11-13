@@ -311,6 +311,9 @@ https://github.com/FFmpeg/FFmpeg/tree/master/doc
 
 ## 简单的example  
 https://blog.csdn.net/leixiaohua1020/article/details/8652605
+```c
+1.avio_reading.c
+``` 
 
 
 # webrtc交互过程  
