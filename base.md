@@ -304,6 +304,11 @@ int avcodec_decode_audio3(AVCodecContext *avctx,
                           int16_t *samples,
                           int *frame_size_ptr,
                           AVPacket *avpkt);
+
+18.
+//分配一个结构体大小的内存
+AVPacket *av_packet_alloc(void)
+AVFrame *av_frame_alloc
 ```
 
 ## 官方文档  
