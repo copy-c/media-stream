@@ -57,24 +57,20 @@ RTCPeerConnection调用close()来指示连接已使用完毕
 2）STUN/TURN/ICE服务
 
 ## 源码分析
-1.api  
+### api  
 接口层，包括DataChannel、MediaStream、SDP相关接口  
 各浏览器都通过该接口层调用webRTC  
-2.call  
-webRCT中call相关逻辑层代码
-3.audio
+### audio
 存放音频网络逻辑层相关代码，音频逻辑上的发送，接收等
-4.video   
-存放视频逻辑层及视频引擎层相关代码，视频逻辑上发送，接收等  
-5.sdk  
-存放Android、IOS层代码，如视频的采集，渲染代码  
-6.pc  
-存放业务逻辑代码，channel，session等  
-7.common_audio  
+### call  
+webRCT中call相关逻辑层代码
+### common_audio  
 音频基本算法，环形队列、傅里叶算法、滤波器等  
-8.common_video  
+### common_video  
 视频基本工具，libyuv、sps/pps分析器、l420缓冲器等  
-9.modules  
+### media  
+存放媒体相关  
+### modules  
 重要！ 音视频的采集、处理、编解码器、混音等  
 --
     -- audio_coding ： 音频编解码相关
@@ -97,15 +93,19 @@ webRCT中call相关逻辑层代码
     -- desktop_capture : 桌面采集相关的代码
     -- media_file : 播放媒体文件相关的代码
     -- rtp_rtcp : rtp/rtcp协议相关代码
-10.media  
-存放媒体相关  
-11.p2p  
+### p2p  
 p2p相关  
-12.rtc_base  
+### pc  
+存放业务逻辑代码，channel，session等  
+### rtc_base  
 基础代码  
-13.rtc_tools   
+### rtc_tools   
 工具代码  
-14.stats  
+### sdk  
+存放Android、IOS层代码，如视频的采集，渲染代码  
+### stats  
 数据统计相关  
-15.system_wrapper   
-操作系统相关 
+### system_wrapper   
+操作系统相关  
+### video   
+存放视频逻辑层及视频引擎层相关代码，视频逻辑上发送，接收等  
