@@ -5,6 +5,7 @@
 代码解析 https://blog.csdn.net/languobeibei/article/details/77447081  
 简单理解 https://github.com/Piasy/Piasy.github.io/blob/master/_drafts/2017-06-19-understand-apprtc-android.md   
 https://github.com/eddiexue/BetterStep05  
+好像很靠谱，但没看 https://blog.piasy.com/2018/05/24/WebRTC-Video-Native-Journey/  
 
 # 架构与服务
 ## 架构
