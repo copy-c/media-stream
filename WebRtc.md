@@ -3,7 +3,8 @@
 代码分析 https://www.cnblogs.com/CoderTian/p/7868328.html  
 媒体流 https://blog.csdn.net/oupeng1991/article/category/2412961  
 代码解析 https://blog.csdn.net/languobeibei/article/details/77447081  
-简单理解 https://github.com/Piasy/Piasy.github.io/blob/master/_drafts/2017-06-19-understand-apprtc-android.md  
+简单理解 https://github.com/Piasy/Piasy.github.io/blob/master/_drafts/2017-06-19-understand-apprtc-android.md   
+https://github.com/eddiexue/BetterStep05  
 
 # 架构与服务
 ## 架构
