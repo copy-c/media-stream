@@ -327,4 +327,7 @@ https://blog.csdn.net/leixiaohua1020/article/details/8652605
 ## API
 https://developer.mozilla.org/zh-CN/docs/Web/API/WebRTC_API
 
-音视频基础知识, 视频封装和编码, 音频采样编码等概念
+# 音视频基础知识
+1.I帧、P帧、B帧  
+视频压缩算法IPB，采用I压缩率7%,P压缩率20%，B压缩率50%，网上电影一般采用B帧压缩  
+I帧是关键帧，属于帧内压缩；P是向前搜索；B是双向搜索；他们都是基于I帧来压缩数据  
