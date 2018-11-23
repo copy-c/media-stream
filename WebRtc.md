@@ -7,7 +7,8 @@
 https://github.com/eddiexue/BetterStep05  
 好像很靠谱，但没看 https://blog.piasy.com/2018/05/24/WebRTC-Video-Native-Journey/  
 
-代码走读 https://blog.csdn.net/wanghorse/article/details/45175047
+代码走读 https://blog.csdn.net/wanghorse/article/details/45175047  
+中文网站 http://webrtc.org.cn/
 
 # 架构与服务
 ## 架构
