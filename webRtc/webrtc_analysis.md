@@ -334,6 +334,7 @@ while (++it != sendingStreams_.end()) {
 }
 
 # 方案
+```c++
 peerconnectionfactory.cc
 {
     cricket::ChannelManager* PeerConnectionFactory::channel_manager() 
@@ -373,3 +374,4 @@ VideoReceiveStream
 {
     void RequestKeyFrame() override;
 }
+```
