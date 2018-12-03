@@ -1,3 +1,5 @@
+https://www.jianshu.com/u/01c225e97375  
+
 # 视频采集
 ## 基本数据结构 
 ```c++
