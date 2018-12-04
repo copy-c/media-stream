@@ -212,7 +212,8 @@ VideoSourceBase : public VideoSourceInterface<webrtc::VideoFrame>
 
 ## 找video的指针 都是video目录
 方法：
-取VideoReceiveStream
+```c++
+VideoReceiveStream
 webrtcvideoengine.cc
 // 
 class WebRtcVideoChannel : public VideoMediaChannel
@@ -281,6 +282,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp
         }
     }
 }
+```
 
 # channel
 class MediaChannel {}
