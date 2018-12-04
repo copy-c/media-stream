@@ -376,3 +376,52 @@ VideoReceiveStream
     void RequestKeyFrame() override;
 }
 ```
+## video
+### 接收
+WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
+                                     const rtc::PacketTime& packet_time) 
+{
+    call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, *packet, packet_time);
+}
+
+call.cc
+PacketReceiver::DeliveryStatus Call::DeliverPacket()
+{
+    return DeliverRtcp(media_type, packet.cdata(), packet.size())
+    ||
+    return DeliverRtp(media_type, std::move(packet), packet_time_us);
+    {
+        RtpStreamReceiverController video_receiver_controller_;
+        video_receiver_controller_.OnRtpPacket(parsed_packet)
+        {
+            return demuxer_.OnRtpPacket(packet); // RtpDemuxer demuxer_
+            {
+                RtpVideoStreamReceiver::OnRtpPacket()
+                {
+                      ReceivePacket(packet);
+                }
+            }
+        }
+    }
+}
+
+### 解码
+video_receive_stream.cc
+VideoReceiveStream
+{
+    // 解码线程启动
+    Start() // 继承自call的 webrtc::VideoReceiveStream
+    {
+        video_receiver_.DecoderThreadStarting(); // vcm::VideoReceiver video_receiver_;
+        decode_thread_.Start(); // rtc::PlatformThread decode_thread_;
+        rtp_video_stream_receiver_.StartReceive(); 
+        {
+            // RtpVideoStreamReceiver rtp_video_stream_receiver_;
+            void RtpVideoStreamReceiver::StartReceive() {
+                receiving_ = true;
+            }
+        }
+    }
+    // 编完完成后一顿回调
+    IncomingVideoStream::OnFrame[将帧放入队列VideoRenderFrames]
+}
