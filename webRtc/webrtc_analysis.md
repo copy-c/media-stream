@@ -378,6 +378,7 @@ VideoReceiveStream
 ```
 ## video
 ### 接收
+```c++
 WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
                                      const rtc::PacketTime& packet_time) 
 {
@@ -404,8 +405,9 @@ PacketReceiver::DeliveryStatus Call::DeliverPacket()
         }
     }
 }
-
+```
 ### 解码
+```c++
 video_receive_stream.cc
 VideoReceiveStream
 {
@@ -425,3 +427,4 @@ VideoReceiveStream
     // 编完完成后一顿回调
     IncomingVideoStream::OnFrame[将帧放入队列VideoRenderFrames]
 }
+```
