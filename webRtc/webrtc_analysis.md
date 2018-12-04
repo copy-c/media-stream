@@ -1,16 +1,8 @@
-https://blog.csdn.net/NB_vol_1/article/details/82119450  
-https://www.jianshu.com/u/01c225e97375   
-https://blog.csdn.net/liuhongxiangm/article/details/53581064  
-# 视频采集
-## 基本数据结构 
-```c++
-class VideoFrameBuffer <<interface>>
-[
-    class VideoFrame;
-    class I420
-]
-```
-## pc
+# 参考
+1.https://blog.csdn.net/liuhongxiangm/article/details/53581064
+2.https://www.cnblogs.com/fangkm/p/4370492.html
+3.https://blog.piasy.com/2018/05/24/WebRTC-Video-Native-Journey/
+# pc 初始化
 ```c++
 // 发送端
 peerconnection_client
@@ -66,7 +58,8 @@ peerconnection_client
             {
                 PushdownTransportDescription()
                 {
-                    transport_controller_->SetLocalDescription(type, sdesc->description()); //unique_ptr<JsepTransportController> transport_controller_;
+                    transport_controller_->SetLocalDescription(type, sdesc->description()); 
+                    //unique_ptr<JsepTransportController> transport_controller_;
                 }
                 UpdateTransceiversAndDataChannels()
                 {
@@ -77,7 +70,49 @@ peerconnection_client
                     UpdateTransceiverChannel()
                     {
                         // 增加channel给transceiver
-                        channel = CreateVideoChannel(content.name);
+                        ///// 挺重点的
+                        cricket::VideoChannel* channel = CreateVideoChannel(content.name);
+                        {
+                            cricket::VideoChannel* video_channel = 
+                            channel_manager()->CreateVideoChannel(call_.get(), configuration_.media_config, rtp_transport,
+                                                                  signaling_thread(), mid, SrtpRequired(),
+                                                                  factory_->options().crypto_options, video_options_);
+                            // channel_manager() 连接的定义
+                            cricket::ChannelManager* PeerConnection::channel_manager() const 
+                            {
+                                return factory_->channel_manager();
+                            }
+                            // 进入ChannelManager看它定义的CreateVideoChannel
+                            channelmanager.cc
+                            {
+                                // 第一步：获取构造函数需要的VideoMediaChannel指针
+                                // 疑问：media_engine_ 这个函数的指针是如何而来的
+                                VideoMediaChannel* media_channel = 
+                                media_engine_->CreateVideoChannel(call, media_config, options);
+                                {
+                                    // 关于media_engine_的定义 MediaEngineInterface，来自mediaengin.cc
+                                    // class CompositeMediaEngine : public MediaEngineInterface 来自mediaengin.cc
+                                        {
+                                            virtual VideoMediaChannel* CreateVideoChannel(call, config, options) {
+                                                return video().CreateChannel(call, config, options);
+                                            }
+                                        }
+                                    // 使用CompositeMediaEngine在webrtcmediaengine.cc
+                                        {
+                                            webrtcmediaengine.cc new了CompositeMediaEngine的对象
+                                            其中video使用了WebRtcVideoEngine类 webrtcvideoengine.cc
+                                            WebRtcVideoChannel* WebRtcVideoEngine::CreateChannel() {
+                                                return new WebRtcVideoChannel(call, config, options);
+                                            }
+                                        }
+                                }
+                                // 第二步：
+                                video_channel = absl::make_unique<VideoChannel>(
+                                                            worker_thread_, network_thread_, signaling_thread,
+                                                            absl::WrapUnique(media_channel), content_name, srtp_required,
+                                                            crypto_options);
+                                video_channels_.push_back(std::move(video_channel));
+                        }
                         transceiver->internal()->SetChannel(channel);
                         // 调用方法
                         cricket::BaseChannel* channel = transceiver->internal()->channel();
@@ -109,7 +144,6 @@ peerconnection_client
     
 }
 
-
 // 接受端
 // 收到offer后
 // 保存远端 SetRemoteDescription
@@ -117,101 +151,129 @@ peerconnection_client
 // 保存本地 SetLocalDescription
 ```
 
-
-
-
-# 媒体相关类
-## pc 目录下
-最顶层为MediaStream，pc创建中会把下面的创建好
-
-class MediaStreamInterface : public rtc::RefCountInterface,
-                             public NotifierInterface {}
-class MediaStream : public Notifier<MediaStreamInterface>
-
-class MediaStreamTrackInterface {}
-class VideoSourceInterface {AddOrUpdateSink();}
-class VideoTrackInterface : public MediaStreamTrackInterface,
-                            public rtc::VideoSourceInterface<VideoFrame> {}
-
-peerconnection.cc
+# 媒体相关
+## 基本数据结构 
+```c++
+class VideoFrameBuffer <<interface>>
 {
-    
-    // sender端 先手offer
-    InitializePeerConnection()
+    class VideoFrame;
+    class I420
+}
+```
+## 发送与接收模块关系
+https://blog.csdn.net/NB_vol_1/article/details/82118830  
+
+## 核心模块
+VideoSendStream
+{
+    1.提供数据源 capture
+    2.提供数据输出点 transport
+    3.视频编码器 encode
+    4.数据打包 rtp
+    5.抗丢包 udp
+    6.拥塞控制
+    VideoStreamEncoder 处理编码过程
+    VideoSendStreamImpl 处理发送过程
+}
+
+## 数据源与数据输出点
+```c++
+template <typename VideoFrameT>
+class VideoSourceInterface {
+public:
+    virtual void AddOrUpdateSink(VideoSinkInterface<VideoFrameT>* sink, const VideoSinkWants& wants) = 0;
+    virtual void RemoveSink(VideoSinkInterface<VideoFrameT>* sink) = 0;
+protected:
+    virtual ~VideoSourceInterface() {}
+};
+//数据源模可以产生数据，一般来说Capture就是一个数据源；
+//产生数据之后，可以通过数据输出点把数据传输到下一个模块，一般来说是编码器模块。
+
+
+VideoSinkInterface
+template <typename VideoFrameT>
+class VideoSinkInterface {
+public:
+    virtual ~VideoSinkInterface() = default;
+    virtual void OnFrame(const VideoFrameT& frame) = 0;
+    virtual void OnDiscardedFrame() {}
+};
+//模块之间的数据传输通道，利于模块间解耦
+//VideoSinkInterface 主要用于Capture与编码器、解码器与render之间的数据传输。
+```
+
+## channel
+```c++
+pc时候创建channel就已经创建好 WebRtcVideoChannel
+问题1.videosendstream和videoreceivestream是何时通过AddSendStream和AddRecvStream加入的
+问题2.call在具体实现中的作用
+WebRtcVideoChannel
+{
+
+}
+```
+
+
+## 接收
+```c++
+WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
+                                     const rtc::PacketTime& packet_time) 
+{
+    call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, *packet, packet_time);
+}
+
+call.cc
+PacketReceiver::DeliveryStatus Call::DeliverPacket()
+{
+    return DeliverRtcp(media_type, packet.cdata(), packet.size())
+    ||
+    return DeliverRtp(media_type, std::move(packet), packet_time_us);
     {
-        CreatePeerConnection();
-        AddTracks()
+        RtpStreamReceiverController video_receiver_controller_;
+        video_receiver_controller_.OnRtpPacket(parsed_packet)
         {
-            VideoTrackInterface video_track_ = CreateVideoTrack(CreateVideoSource); // 将源的track取出来
-            peer_connection_->AddTrack(video_track_, {kStreamId}) // video_track_ 是 MediaStreamTrackInterface
+            return demuxer_.OnRtpPacket(packet); // RtpDemuxer demuxer_
             {
-                sender = new RtpSenderInternal;
-                receiver = new RtpReceiverInternal;
-                transceiver = <RtpTransceiver>::Create(new RtpTransceiver(sender, receiver));
-                transceivers_.push_back(transceiver);
+                RtpVideoStreamReceiver::OnRtpPacket()
+                {
+                      ReceivePacket(packet);
+                }
             }
         }
     }
-    
-    ApplyLocalDescription(
-    {
-        // 创建channel
-        // video->name 是从dsp中获取的，其实是一个标识，mid
-        cricket::VideoChannel* video_channel = CreateVideoChannel(video->name);
-        {
-            cricket::VideoChannel* video_channel = channel_manager()->CreateVideoChannel
-            {
-                call_.get() // 此处的call_是pc的成员变量
-                通过channelmanager.cc来进行管理，都是由它进行创建
-            }
-
-        }
-        
-    }
-
-    // receiver端 收到offer
-    rtc::scoped_refptr<StreamCollection> remote_streams_;
-    ApplyRemoteDescription()
-    {
-        // 根据收到的stream_id创建stream并加入
-        remote_streams_->(stream);
-        media_streams.push_back(stream);
-        // 加入transceiver中
-        transceiver->internal()->receiver_internal()->SetStreams(media_streams);
-        now_receiving_transceivers.push_back(transceiver);
-        // 加入回调 PeerConnectionObserver
-        // 但感觉这边已经是被解码的内容啊，所以 video的那些和pc的这些的关系是什么，主要这个问题
-        observer->OnTrack(transceiver);
-        observer->OnAddTrack(transceiver->receiver(), transceiver->receiver()->streams());
-        observer->OnAddStream(stream);
-    }
 }
+```
 
-// 先分析receiver
-rtpreceiver.cc
-RtpReceiverInternal : public RtpReceiverInterface
-VideoRtpReceiver : public rtc::RefCountedObject<RtpReceiverInternal>
+## 解码
+```c++
+video_receive_stream.cc
+VideoReceiveStream
 {
-    class VideoRtpTrackSource : public VideoTrackSource 
+    // 解码线程启动
+    Start() // 继承自call的 webrtc::VideoReceiveStream
     {
-        rtc::VideoBroadcaster broadcaster_;
+        video_receiver_.DecoderThreadStarting(); // vcm::VideoReceiver video_receiver_;
+        decode_thread_.Start(); // rtc::PlatformThread decode_thread_;
+        rtp_video_stream_receiver_.StartReceive(); 
+        {
+            // RtpVideoStreamReceiver rtp_video_stream_receiver_;
+            void RtpVideoStreamReceiver::StartReceive() {
+                receiving_ = true;
+            }
+        }
     }
-    source_(new RefCountedObject<VideoRtpTrackSource>());
-    cricket::VideoMediaChannel* media_channel_ = nullptr;
-
+    // 编完完成后一顿回调
+    IncomingVideoStream::OnFrame[将帧放入队列VideoRenderFrames]
 }
-
-VideoTrackSource : public Notifier<VideoTrackSourceInterface>
-VideoTrackSourceInterface : public MediaSourceInterface,
-                            public rtc::VideoSourceInterface<VideoFrame>
-
-
-VideoSourceBase : public VideoSourceInterface<webrtc::VideoFrame>
+```
 
 
 
+
+
+# 需求
+## 请求关键帧
 ## 找video的指针 都是video目录
-方法：
 ```c++
 VideoReceiveStream
 webrtcvideoengine.cc
@@ -284,7 +346,11 @@ class ModuleRtpRtcpImpl : public RtpRtcp
 }
 ```
 
-# channel
+
+
+# 其他
+## channel
+```C++
 class MediaChannel {}
 class VideoMediaChannel : public MediaChannel {}
 class WebRtcVideoChannel : public VideoMediaChannel
@@ -322,111 +388,5 @@ class MediaEngineInterface
 {
     virtual VoiceMediaChannel* CreateChannel
     virtual VideoMediaChannel* CreateVideoChannel
-}
-
-### 当前audio的方案
-std::vector<AudioSendStream*> GetSendingStreams();              {
-
-}            
-
-auto it = sendingStreams_.begin();
-while (++it != sendingStreams_.end()) {
-    const webrtc::voe::ChannelProxy &channel = static_cast<webrtc::internal::AudioSendStream *>(*it)->GetChannelProxy();
-    channel.GetRtpRtcp(&RtpRtcp, &RtpReceiver);
-    rtpRtcps_.push_back(RtpRtcp);
-}
-
-# 方案
-```c++
-peerconnectionfactory.cc
-{
-    cricket::ChannelManager* PeerConnectionFactory::channel_manager() 
-    {
-        return channel_manager_.get();
-    }
-}
-
-channelmanager.cc
-ChannelManager
-{
-    std::vector<std::unique_ptr<VideoChannel>> video_channels_;
-}
-
-channel.cc
-VideoChannel
-{
-    VideoMediaChannel* media_channel() const override 
-    {
-        return static_cast<VideoMediaChannel*>(BaseChannel::media_channel());
-    }
-}
-
-// 所以这里的media_channel()是不是可以指WebRtcVideoChannel
-webrtcvideoengine.cc
-WebRtcVideoChannel:public VideoMediaChannel, public webrtc::Transport
-{
-    std::map<uint32_t, WebRtcVideoReceiveStream*> receive_streams_ RTC_GUARDED_BY(stream_crit_);
-}
-WebRtcVideoReceiveStream
-{
-    webrtc::VideoReceiveStream* stream_;
-}
-
-video_receive_stream.cc
-VideoReceiveStream
-{
-    void RequestKeyFrame() override;
-}
-```
-## video
-### 接收
-```c++
-WebRtcVideoChannel::OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
-                                     const rtc::PacketTime& packet_time) 
-{
-    call_->Receiver()->DeliverPacket(webrtc::MediaType::VIDEO, *packet, packet_time);
-}
-
-call.cc
-PacketReceiver::DeliveryStatus Call::DeliverPacket()
-{
-    return DeliverRtcp(media_type, packet.cdata(), packet.size())
-    ||
-    return DeliverRtp(media_type, std::move(packet), packet_time_us);
-    {
-        RtpStreamReceiverController video_receiver_controller_;
-        video_receiver_controller_.OnRtpPacket(parsed_packet)
-        {
-            return demuxer_.OnRtpPacket(packet); // RtpDemuxer demuxer_
-            {
-                RtpVideoStreamReceiver::OnRtpPacket()
-                {
-                      ReceivePacket(packet);
-                }
-            }
-        }
-    }
-}
-```
-### 解码
-```c++
-video_receive_stream.cc
-VideoReceiveStream
-{
-    // 解码线程启动
-    Start() // 继承自call的 webrtc::VideoReceiveStream
-    {
-        video_receiver_.DecoderThreadStarting(); // vcm::VideoReceiver video_receiver_;
-        decode_thread_.Start(); // rtc::PlatformThread decode_thread_;
-        rtp_video_stream_receiver_.StartReceive(); 
-        {
-            // RtpVideoStreamReceiver rtp_video_stream_receiver_;
-            void RtpVideoStreamReceiver::StartReceive() {
-                receiving_ = true;
-            }
-        }
-    }
-    // 编完完成后一顿回调
-    IncomingVideoStream::OnFrame[将帧放入队列VideoRenderFrames]
 }
 ```
