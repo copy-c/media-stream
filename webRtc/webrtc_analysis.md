@@ -1,7 +1,7 @@
 # 参考
-1.https://blog.csdn.net/liuhongxiangm/article/details/53581064
-2.https://www.cnblogs.com/fangkm/p/4370492.html
-3.https://blog.piasy.com/2018/05/24/WebRTC-Video-Native-Journey/
+1.https://blog.csdn.net/liuhongxiangm/article/details/53581064  
+2.https://www.cnblogs.com/fangkm/p/4370492.html  
+3.https://blog.piasy.com/2018/05/24/WebRTC-Video-Native-Journey/  
 # pc 初始化
 ```c++
 // 发送端
