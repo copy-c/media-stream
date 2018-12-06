@@ -14,6 +14,13 @@ peerconnection_client
         1.2 CreatePeerConnection()
         {
             peer_connection_ = peer_connection_factory_->CreatePeerConnection();
+            {
+                PeerConnectionFactory::CreatePeerConnection() / peerconnectionfactory.cc
+                {
+                      std::unique_ptr<Call> call = worker_thread_->Invoke<std::unique_ptr<Call>>(Bind(&PeerConnectionFactory::CreateCall_w);
+                      scoped_refptr<PeerConnection> pc(new rtc::RefCountedObject<PeerConnection>(this, std::move(event_log), std::move(call)));
+                }
+            }
         }
         1.3 AddTrack() // 发送端才进行这一步，比如publisher并没有这步而player才有
         {
@@ -73,6 +80,7 @@ peerconnection_client
                         ///// 挺重点的
                         cricket::VideoChannel* channel = CreateVideoChannel(content.name);
                         {
+                            // Call 第一次出现在这里，call_.get() ------ 这个call_是如何赋值的
                             cricket::VideoChannel* video_channel = 
                             channel_manager()->CreateVideoChannel(call_.get(), configuration_.media_config, rtp_transport,
                                                                   signaling_thread(), mid, SrtpRequired(),
@@ -121,6 +129,54 @@ peerconnection_client
                     transceiver->internal()->sender_internal()->SetSsrc(streams[0].first_ssrc());
                 }
             }
+            UpdateSessionState(type, cricket::CS_LOCAL, remote_description()->description())
+            {
+                PushdownMediaDescription(type, source)
+                {
+                    channel->SetLocalContent(content_desc, type, &error) // 加入send stream
+                    channel->SetRemoteContent(content_desc, type, &error) // 加入receive stream
+                    {
+                        UpdateRemoteStreams_w(video->streams(), type, error_desc);
+                        {
+                            bool BaseChannel::AddRecvStream_w(const StreamParams& sp) 
+                            {
+                                return media_channel()->AddRecvStream(sp); // media_channel会指向webrtcvideochannel
+                                {
+                                    // webrtcvideochannel
+                                    receive_streams_[ssrc] = new WebRtcVideoReceiveStream(call_, sp, std::move(config), decoder_factory_, 
+                                                                                          default_stream, recv_codecs_, flexfec_config);
+                                    // 此处还差一个WebRtcVideoReceiveStream里面VideoReceiveStream的指针
+                                    {
+                                        WebRtcVideoReceiveStream的构造函数
+                                        {
+                                            RecreateWebRtcVideoStream()
+                                            {
+                                                // 此时的stream_是webrtc::VideoReceiveStream
+                                                stream_ = call_->CreateVideoReceiveStream(std::move(config));
+                                                {
+                                                    // call.h
+                                                    // 此时的receive_stream是internal::VideoReceiveStream 
+                                                    // 他们的关系是internal::VideoReceiveStream : public webrtc::VideoReceiveStream
+                                                    VideoReceiveStream* receive_stream = new VideoReceiveStream();  
+                                                    {
+                                                        rtp_video_stream_receiver_(&transport_adapter_,
+                                                                                   call_stats,   
+                                                                                   packet_router) // 此处的网络router是如何来的，call是谁传进去的
+                                                                                                  // call 是哪里来的啊
+                                                    }  
+                                                }
+                                                stream_->Start();  // 就在此处开始解码
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+
         }
         // 3.2 创建answer
         CreateSessionDescription()
@@ -205,11 +261,20 @@ public:
 ## channel
 ```c++
 pc时候创建channel就已经创建好 WebRtcVideoChannel
-问题1.videosendstream和videoreceivestream是何时通过AddSendStream和AddRecvStream加入的
 问题2.call在具体实现中的作用
+webrtcvideoenine.h
 WebRtcVideoChannel
 {
-
+    AddRecvStream(sp)
+    {
+        receive_streams_[ssrc] = new WebRtcVideoReceiveStream(call_, sp, std::move(config), decoder_factory_, 
+                                                              default_stream, recv_codecs_, flexfec_config);
+        // 问题
+        // 1.此处WebRtcVideoReceiveStream的内部成员VideoReceiveStream是怎么搞进去的
+        {
+            
+        }
+    }
 }
 ```
 
@@ -273,7 +338,11 @@ VideoReceiveStream
 
 # 需求
 ## 请求关键帧
-## 找video的指针 都是video目录
+当前修改位置
+1.peerconnectioninterface.h 增加virtual接口
+2.peerconnection.h 通过channle_manager()获取channel信息 RequestKeyFrame
+3.channelmanger.h 遍历所有的Videochannel RequestKeyFrameOnVideoChannel
+4.webrtcvideoengin.h 遍历所有WebRtcVideoReceiveStream，请求其中VideoReceiveStream的RequestKeyFrameOnMediaChannel
 ```c++
 VideoReceiveStream
 webrtcvideoengine.cc
