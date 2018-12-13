@@ -135,9 +135,10 @@ m= (media name and transport address)
 
 
 # webrtc实现
+ICE流程：收集候选地址、在信令通道中交换候选选项、执行连接检查、选定并启动媒体  
 ```c++
-// 1.配置，构造IceServer，进而创建configuration
-// STUN
+// 1.配置STUN/TURN服务器信息  
+// STUN  
 PeerConnectionInterface::IceServer stun_server;
 stun_server.uri = kIceServerUri; // kStunServerUri = "stun:xx.xx.xx.xx:xx"
 configuration.servers.push_back(stun_server);
@@ -147,156 +148,127 @@ turn_server.uri = kTurnServerUri; // kTurnServerUri = "turn:xx.xx.xx.xx:xx"
 turn_server.password = kTurnServerPassword; 
 turn_server.username = kTurnServerUsername;
 configuration.servers.push_back(turn_server);
-
-// 2.创建peer的同时创建port_allocator_，并初始化其配置
 PeerConn_ = PeerConnFactory_->CreatePeerConnection(configuration, nullptr, nullptr, &PCObs_);
 {
+    allocator = allocator.reset(new cricket::BasicPortAllocator)
     pc->Initialize(configuration, move(allocator),move(cert_generator), observer))
     {        
+        pc->port_allocator_ = allocator;
         network_thread() -> bind(InitializePortAllocator_n, configuration)
         {
-            // unique_ptr<PortAllocator> port_allocator_;
-            ParseIceServers(configuration.servers, &stun_servers, &turn_servers)
-            port_allocator_->SetConfiguration(stun_servers, turn_servers, configuration);
+            InitializePortAllocator_n
             {
-                // portallocator.cc PortAllocate::SetConfiguration()
-                // 配置stun、turn、candidate_pool_size、stun_candidate_keepalive_interval_
-                PortAllocatorSession* pooled_session = CreateSessionInternal();
-                pooled_session->StartGettingPorts();
+                // unique_ptr<PortAllocator> port_allocator_;
+                ParseIceServers(configuration.servers, &stun_servers, &turn_servers)
+                port_allocator_->SetConfiguration(stun_servers, turn_servers, configuration);
                 {
-                    // 见3
-                }
-            }
-        }
-        transport_controller_.reset(CreateTransportController(port_allocator_.get(), configuration));
-    }
-}
-
-// 3. StartGettingPorts
-BasicPortAllocatorSession::StartGettingPorts()
-{
-    network_thread_->Post(RTC_FROM_HERE, this, MSG_CONFIG_START);
-}
-void BasicPortAllocatorSession::OnMessage(rtc::Message *message)
-{
-    case MSG_CONFIG_START:
-    GetPortConfigurations();
-    {
-        PortConfiguration* config = new PortConfiguration(allocator_->stun_servers(),
-                                                          username(), password());
-        for (const RelayServerConfig& turn_server : allocator_->turn_servers()) {
-            config->AddRelay(turn_server); // 往新config加入turn服务器信息
-        }
-        ConfigReady(config);
-        {
-            network_thread_->Post(RTC_FROM_HERE, this, MSG_CONFIG_READY, config);
-            // 如下
-        }
-    }
-}
-void BasicPortAllocatorSession::OnMessage(rtc::Message *message)
-{
-    case MSG_CONFIG_READY:
-    OnConfigReady(static_cast<PortConfiguration*>(message->pdata));
-    {
-        AllocatePorts();
-        {
-            network_thread_->Post(RTC_FROM_HERE, this, MSG_ALLOCATE);
-            // 如下
-        }
-    }
-}
-
-void BasicPortAllocatorSession::OnMessage(rtc::Message *message)
-{
-    case MSG_ALLOCATE:
-    OnAllocate();
-    {
-        // 创建sequence
-        AllocationSequence* sequence = new AllocationSequence(this, networks[i], config, sequence_flags);
-        // 并开始
-        sequence->Start();
-        {
-            void AllocationSequence::Start() // basicportallocator.cc
-            {
-                session_->network_thread()->Post(RTC_FROM_HERE, this, MSG_ALLOCATION_PHASE);
-                {
-                    // 如下
-                }
-            }
-        }
-    }
-}
-
-void AllocationSequence::OnMessage(rtc::Message* msg) 
-{
-    switch (phase_) {
-        case PHASE_UDP:
-        CreateUDPPorts();
-        {
-            如下 UDP/STUN
-        }
-        CreateStunPorts();
-        break;
-
-        case PHASE_RELAY:
-        CreateRelayPorts();
-        {
-            如下 TURN
-        }
-        break;
-
-        case PHASE_TCP:
-        CreateTCPPorts();
-        state_ = kCompleted;
-        break;
-    }
-
-    if (state() == kRunning) {
-        ++phase_;
-        // 延迟后继续选下一种发送
-        session_->network_thread()->PostDelayed(RTC_FROM_HERE,
-                                                session_->allocator()->step_delay(), // 延迟函数
-                                                this, MSG_ALLOCATION_PHASE);
-    } else {
-        // If all phases in AllocationSequence are completed, no allocation
-        // steps needed further. Canceling  pending signal.
-        session_->network_thread()->Clear(this, MSG_ALLOCATION_PHASE);
-        SignalPortAllocationComplete(this);
-    }
-}
-
-// 发送UDP/STUN
-void AllocationSequence::CreateUDPPorts() 
-{
-    UDPPort* port = UDPPort::Create()
-    session_->AddAllocatedPort(port, this, true);
-    {
-        void BasicPortAllocatorSession::AddAllocatedPort(Port* port, AllocationSequence * seq, bool prepare_address)
-        {
-            port->PrepareAddress();
-            {
-                void UDPPort::PrepareAddress() // stunport.cc
-                {
-                    OnLocalAddressReady(socket_, socket_->GetLocalAddress());
+                    // portallocator.cc PortAllocate::SetConfiguration()
+                    // 配置stun、turn、candidate_pool_size、stun_candidate_keepalive_interval_
+                    PortAllocatorSession* pooled_session = CreateSessionInternal("", 0, "", "");
                     {
-                        AddAddress();
-                        MaybePrepareStunCandidate();
+                        PortAllocatorSession* session = 
+                                            new BasicPortAllocatorSession(this, content_name, component, ice_ufrag, ice_pwd);
+                        session->SignalIceRegathering.connect(this,
+                                        &BasicPortAllocator::OnIceRegathering);
+                    }
+                    pooled_session->StartGettingPorts(); ? 是不是不会起作用？
+                    {
+                        // 见3
+                    }
+                    pooled_sessions_.push_back(pooled_session);
+                }
+            }
+        }
+        transport_controller_.reset(CreateTransportController(port_allocator_.get(), configuration)); // TransportController
+    }
+}
+
+// 2 收集信息 
+PeerConnection::SetLocalDescription()
+{
+    port_allocator_->FreezeCandidatePool(); // 冻结pool 
+    transport_controller_->MaybeStartGathering();  // TransportController
+    {
+        TransportController::MaybeStartGathering_n
+        {
+            channel->dtls()->ice_transport()->MaybeStartGathering(); // 此处的channel如何而来
+
+            P2PTransportChannel::MaybeStartGathering()
+            {
+                AddAllocatorSession(allocator_->CreateSession(transport_name(), 
+                                    component(), ice_parameters_.ufrag, ice_parameters_.pwd));
+                allocator_sessions_.back()->StartGettingPorts(); //     BasicPortAllocatorSession::StartGettingPorts
+                {
+                    network_thread_->Post(RTC_FROM_HERE, this, MSG_CONFIG_START);
+                    BasicPortAllocatorSession::OnMessage // 循环，最重要
+                    // DoAllocate 里会遍历所有网络设备（Network 对象），创建 AllocationSequence 对象，调用其 Init Start 函数，分配 port。
+                    BasicPortAllocatorSession::OnAllocate() 
+                    {
+                        // 创建sequence
+                        AllocationSequence* sequence = new AllocationSequence(this, networks[i], config, sequence_flags);
+                        // 分配port
+                        sequence->Start(); // AllocationSequence::Start() 
                         {
-                            SendStunBindingRequests();
+                            session_->network_thread()->Post(RTC_FROM_HERE, this, MSG_ALLOCATION_PHASE);
                             {
-                                for (ServerAddresses::const_iterator it = server_addresses_.begin();
-                                    it != server_addresses_.end(); ++it) {
-                                    SendStunBindingRequest(*it);
+                                AllocationSequence::OnMessage(rtc::Message* msg) 
+                                {
+                                    // 延迟依次执行
+                                    1.
+                                    CreateUDPPorts();
                                     {
-                                        // StunBindingRequest继承于StunRequest，其内部有个StunMessage* msg_，
-                                        // StunMessage封装了Stun客户端协议。
-                                        requests_.Send(new StunBindingRequest(this, stun_addr, rtc::TimeMillis()));
+                                        UDPPort* port = UDPPort::Create()
+                                        session_->AddAllocatedPort(port, this, true); // BasicPortAllocatorSession::AddAllocatedPort
                                         {
-                                            bool StunMessage::Write(ByteBufferWriter* buf)
+                                            port->PrepareAddress();
                                             {
-                                                buf->WriteString(transaction_id_);
-                                                buf->WriteUInt16(attr->type());
+                                                UDPPort::PrepareAddress() // stunport.cc
+                                                {
+                                                    OnLocalAddressReady(socket_, socket_->GetLocalAddress());
+                                                    {
+                                                        // 本地host已经准备好，LOCAL_PORT_TYPE 
+                                                        AddAddress(LocalAddress);
+                                                        {
+                                                            SignalCandidateReady(this, c); // 通知已经准备好
+                                                        }
+                                                        // 发送STUN Binding request，获得nat地址
+                                                        MaybePrepareStunCandidate();
+                                                        {
+                                                            SendStunBindingRequests();
+                                                            {
+                                                                SendStunBindingRequest(server_addresses_);
+                                                                {
+                                                                    requests_.Send(new StunBindingRequest(this, stun_addr, rtc::TimeMillis()));
+                                                                    // StunBindingRequest继承于StunRequest，其内部有个StunMessage* msg_，
+                                                                    // StunMessage封装了Stun客户端协议。
+                                                                    bool StunMessage::Write(ByteBufferWriter* buf)
+                                                                    {
+                                                                        buf->WriteString(transaction_id_);
+                                                                        buf->WriteUInt16(attr->type());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    2. 
+                                    CreateRelayPorts();
+                                    {
+                                        CreateTurnPort(relay);
+                                        {
+                                            // 创建TurnPort类型 turnport.cc
+                                            port = session_->allocator()->relay_port_factory()->Create()
+                                            // TURN是STUN的拓展，因此收发消息流程相同
+                                            session_->AddAllocatedPort(port.release(), this, true);
+                                            {
+                                                TurnPort::PrepareAddress() 
+                                                {
+                                                    SendRequest(new TurnAllocateRequest(this), 0);
+                                                    // 此处组装TURN的消息
+                                                }
                                             }
                                         }
                                     }
@@ -309,17 +281,137 @@ void AllocationSequence::CreateUDPPorts()
         }
     }
 }
-// 发送TURN 
-void AllocationSequence::CreateRelayPorts()
+// 处理服务端返回的消息
+1) 返回STUN Binding Response
+stunport.cc
+AllocationSequence::OnReadPacket
 {
-
+    udp_port_->HandleIncomingPacket(socket, data, size, remote_addr, packet_time); // stunport.cc
+    {
+        UDPPort::OnReadPacket()
+        {
+            requests_.CheckResponse(data, size); // StunRequestManager
+            {
+                request->OnResponse(msg);
+                {
+                    port_->OnStunBindingRequestSucceeded(this->Elapsed(), server_addr_, addr);
+                    {
+                        AddAddress(stun_reflected_addr)
+                        {
+                            SignalCandidateReady(this, c); // 通知已经准备好
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // 处理服务端返回的消息
-stunport.cc
-UDPPort::OnReadPacket
+2) TURN返回响应
+TurnPort::SendRequest
+              ↓ message
+StunRequest::OnMessage
+              ↓ 发送请求、接收响应
+StunRequestManager::CheckResponse
+              ↓
+TurnAllocateRequest::OnErrorResponse
+              ↓
+TurnAllocateRequest::OnAuthChallenge
+              ↓
+TurnPort::SendRequest
+              ↓ 发送请求、接收响应
+StunRequestManager::CheckResponse
+              ↓
+TurnAllocateRequest::OnResponse
+              ↓
+TurnPort::OnAllocateSuccess
+              ↓
+        Port::AddAddress
+              ↓ sig slot (SignalCandidateReady)
+BasicPortAllocatorSession::OnCandidateReady
+
+3.传输交换
+1) 本地 candidate
+OnCandidateReady
 {
-    
+    P2PTransportChannel::OnCandidatesReady
+                  ↓
+    JsepTransportController::OnTransportCandidateGathered_n
+                    ↓
+    PeerConnection::OnTransportControllerCandidatesGathered
+                    ↓
+    PeerConnection::OnIceCandidate
+                    ↓
+    PeerConnectionObserver::OnIceCandidate
+    {
+        发送给远端
+    }
 }
+2) 收到远端 candidate
+{
+    PeerConnection::AddIceCandidate
+              ↓
+    JsepTransportController::AddRemoteCandidates
+                ↓
+    JsepTransport::AddRemoteCandidates
+                ↓
+    P2PTransportChannel::AddRemoteCandidate
+                ↓
+    P2PTransportChannel::CreateConnections
+    {
+        // 遍历所有local port和remote port，分别调用 UDPPort::CreateConnection 和 TurnPort::CreateConnection 创建 Connection 
+        // 配对好的connection
+        Connection* connection = port->GetConnection(remote_candidate.address());
+
+    }
+                ↓
+    P2PTransportChannel::SortConnectionsAndUpdateState
+    {
+        如下 见连通性检测
+    }
+}
+
+4.连通性检测
+P2PTransportChannel::SortConnectionsAndUpdateState
+{
+    根据优先程度排序
+}
+                  ↓
+P2PTransportChannel::MaybeStartPinging
+{
+    thread()->Post(RTC_FROM_HERE, this, MSG_CHECK_AND_PING);
+    OnCheckAndPing();
+}
+                  ↓
+P2PTransportChannel::PingConnection
+{
+    conn->Ping(last_ping_sent_ms_);
+}
+                  ↓
+StunRequestManager::SendDelayed
+                  ↓ 发送请求、接收响应
+Connection::OnConnectionRequestResponse
+                  ↓
+Connection::set_write_state
+                  ↓ sig slot (SignalStateChange)
+P2PTransportChannel::OnConnectionStateChange
+                  ↓
+P2PTransportChannel::RequestSortAndStateUpdate
+                  ↓ message
+P2PTransportChannel::SortConnectionsAndUpdateState
+{
+    边ping边排序，等最后排序后的结果出来
+}
+
+5.通讯数据
+最终合适的connection选出来后，通知上层进行数据通讯
+P2PTransportChannel::SwitchSelectedConnection
+                    ↓ sig slot (SignalReadyToSend)
+DtlsTransport::OnReadyToSend
+                    ↓ sig slot (SignalReadyToSend)
+RtpTransport::OnReadyToSend
+
+6.Connection、ICE状态变化与排序细节
 
 ```
