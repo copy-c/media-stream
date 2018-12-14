@@ -257,6 +257,7 @@ PeerConnection::SetLocalDescription()
                                     2. 
                                     CreateRelayPorts();
                                     {
+                                        // 此处还有GTurn，但是不采用
                                         CreateTurnPort(relay);
                                         {
                                             // 创建TurnPort类型 turnport.cc
@@ -375,7 +376,9 @@ OnCandidateReady
 4.连通性检测
 P2PTransportChannel::SortConnectionsAndUpdateState
 {
-    根据优先程度排序
+    // 根据优先程度排序
+    // 对IPv4 IPv6的偏好也可以进行设置
+    // 
 }
                   ↓
 P2PTransportChannel::MaybeStartPinging
@@ -401,7 +404,16 @@ P2PTransportChannel::RequestSortAndStateUpdate
                   ↓ message
 P2PTransportChannel::SortConnectionsAndUpdateState
 {
+
     边ping边排序，等最后排序后的结果出来
+    等所有的状态都从“冻结”变为“成功”或“失败” 或者 选择出一个合适的
+}
+void Connection::ReceivedPingResponse
+{
+    UpdateReceiving(last_ping_response_received_);
+    {
+
+    }
 }
 
 5.通讯数据
@@ -412,6 +424,16 @@ DtlsTransport::OnReadyToSend
                     ↓ sig slot (SignalReadyToSend)
 RtpTransport::OnReadyToSend
 
-6.Connection、ICE状态变化与排序细节
+6.保活
+为确保NAT映射和过滤规则不在媒体回话期间超时，ICE会不断通过使用中的候选项对发送连接检查，每隔15s发送一次  
+一方ICE发送保活消息，另一端的ICE会生成STUN响应，说明可以继续发送媒体流  
+若当前地址断连，则ICE重启，重新开始收集、交换、检测等步骤  
 
+7.其他问题  
+1）webrtc 防火墙遍历  
+问题：  
+某些防火墙会不加区分拦截所有UDP通信  
+解决：  
+a.采用防火墙信任的专用VoIP和视频防火墙，需要webrtc采用SIP等标准信令协议作为网关协议  
+b.利用防火墙信任的媒体中继，TURN服务器可以提供此功能，且兼容webrtc中使用的ICE打洞技术  
 ```
