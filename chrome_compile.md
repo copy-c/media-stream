@@ -26,7 +26,7 @@
     ffmpeg_branding="Chrome"
     proprietary_codecs=true
 ```
-- autoninja -C out/xx chrome
+- autoninja -C out/xx chrome
 
 # linux
 1.depot_tools
