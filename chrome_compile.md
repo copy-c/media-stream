@@ -4,7 +4,7 @@
 
 2.depot_tools  
 - 官网下载后解压，并将目录添加到环境变量Path中  
-- 通过执行gclient是否添加成功  
+- 通过执行gclient是否添加成功  
 
 3.download code
 - fetch --no-history chromium 
