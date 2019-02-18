@@ -28,6 +28,9 @@
 ```
 - autoninja -C out/xx chrome
 
+5.run
+chrome.exe --enable-logging --v=1
+
 # linux
 1.depot_tools
 
