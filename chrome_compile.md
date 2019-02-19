@@ -28,7 +28,7 @@
 ```
 - autoninja -C out/xx chrome
 
-5.run
+5.run  
 chrome.exe --enable-logging --v=1
 
 # linux
@@ -57,3 +57,6 @@ chrome.exe --enable-logging --v=1
 ```
 - if adjust args, vi args.gn
 - autoninja -C out/xx chrome
+
+4.run  
+./chrome  
