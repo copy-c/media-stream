@@ -6,77 +6,70 @@ import threading
 import subprocess
 import BaseHTTPServer, SimpleHTTPServer
 
-defaultPort = 8005
-'''
-rootPath = '/data/mrtc_info/'
-'''
-rootPath = '/home/yzngo/Documents/mrtc_info/'
-statsPath = ' '
-interactionPath = ' '
+kDefaultPort = 8005
+kTimeinterval = 5
+kRootPath = '/Users/copy/'
+kStatsPath = 'mrtc_info.stats.'
+kInteractionPath = 'mrtc_info.interaction.'
 
-statsFile = 
-interactionFile
+statsFile = None
+statsFilePtr = None
+interactionFile = None
 
-timeinterval = 5
 statsMutex = threading.Lock()
 interactionMutex = threading.Lock()
 
+date = 0
 stats = ['[null]']
 interaction = ['[null]']
 
-def getDate():
+def getTime():
   localtime = time.localtime(time.time())
   return str(localtime[0]) + '-' + str(localtime[1]) + '-' + str(localtime[2])
 
 def processFile():
-  date = getTime()
+  global date, statsFile, statsFilePtr, interactionFile
   while (True):
-    time.sleep(timeinterval)
-    if date != getTime():
-      date = getTime()
-
+    time.sleep(kTimeinterval)
+    dateTemp = getTime()
+    print(dateTemp)
+    if date != dateTemp:
+      date = dateTemp
+      popen = subprocess.Popen('touch ' + kRootPath + kStatsPath + date, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+      result = popen.stdout.readline()
       statsMutex.acquire()
-      statsPath = rootPath + 'mrtc_info.stats.' + date
-      popen = subprocess.Popen('touch ' + statsPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-      result = popen.stdout.readline()
-
-
-
+      statsFile.close()
+      statsFile = open(kRootPath + kStatsPath + date, 'r')
+      statsFile.seek(0, 2)
+      statsFilePtr = statsFile.tell()
       statsMutex.release()
-      interactionMutex.acquire()
-      interactionPath = rootPath + 'mrtc_info.interaction.' + date
-      popen = subprocess.Popen('touch ' + interactionPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+      popen = subprocess.Popen('touch ' + kRootPath + kInteractionPath + date, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
       result = popen.stdout.readline()
+      interactionMutex.acquire()
+      interactionFile.close()
+      interactionFile = open(kRootPath + kInteractionPath + date, 'r')
       interactionMutex.release()
-      subprocess.Popen('touch ' + statsPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-      
-    
 
 def getStats():
-  statsFile = open(statsPath, 'r')
-  statsFile.seek(0, 2)
-  index = statsFile.tell()
-  statsFile.close()
+  global statsFilePtr
   while True:
-    time.sleep(timeinterval)
+    time.sleep(kTimeinterval)
     statsMutex.acquire()
-    statsFile = open(statsPath, 'r')
-    statsFile.seek(index, 0)
+    statsFile.seek(statsFilePtr, 0)
     line = statsFile.readline()
     stats.pop()
     if line:
-      index = statsFile.tell()
+      statsFilePtr = statsFile.tell()
       stats.append(line)
     else:
       stats.append('[null]')
-    statsFile.close()
     statsMutex.release()
 
 def getInteraction():
   while True:
-    time.sleep(timeinterval)
+    time.sleep(kTimeinterval)
     interactionMutex.acquire()
-    popen = subprocess.Popen('tail -n 1 ' + interactionPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    popen = subprocess.Popen('tail -n 1 ' + kInteractionPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     line = popen.stdout.readline().strip()
     interaction.pop()
     if line:
@@ -86,7 +79,7 @@ def getInteraction():
     interactionMutex.release()
 
 def runHttpServer():
-  httpd = BaseHTTPServer.HTTPServer(('0.0.0.0', defaultPort), RequestHandler)
+  httpd = BaseHTTPServer.HTTPServer(('0.0.0.0', kDefaultPort), RequestHandler)
   httpd.serve_forever()
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -102,12 +95,8 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_response(200)
       self.end_headers()
       statsMutex.acquire()
-      statsFile = open(statsPath, 'r')
       self.wfile.write(statsFile.read())
-      statsFile.close()
       statsMutex.release()
-
-      
     elif self.path == '/interaction':
       self.send_response(200)
       self.end_headers()
@@ -119,31 +108,37 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_response(200)
       self.end_headers()
       interactionMutex.acquire()
-      interactionFile = open(interactionPath, 'r')
       self.wfile.write(interactionFile.read())
-      interactionFile.close()
       interactionMutex.release()
 
 
 if __name__ == '__main__':
-  statsPath = rootPath + 'mrtc_info.stats.' + getTime()
-  interactionPath = rootPath + 'mrtc_info.interaction.' + getTime()
-
-  popen = subprocess.Popen('mkdir -p ' + rootPath + ' && touch ' + statsPath + ' && touch ' + interactionPath, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+  # 根据当前时间创建文件
+  date = getTime()
+  popen = subprocess.Popen('mkdir -p ' + kRootPath + ' && touch ' + kRootPath + kStatsPath + date + ' && touch ' + kRootPath + kInteractionPath + date, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
   result = popen.stdout.readline()
 
+  # 打开stats文件，更新文件指针，使其指向文件最后
+  statsFile = open(kRootPath + kStatsPath + date, 'r')
+  statsFile.seek(0, 2) 
+  statsFilePtr = statsFile.tell()
+
+  # 打开interaction文件
+  interactionFile = open(kRootPath + kInteractionPath + date, 'r')
+
+  # 注册线程
   getStatsTread = threading.Thread(target = getStats, name = 'getStats')
-  getStatsTread.start()
-
   getInteractionThread = threading.Thread(target = getInteraction, name = 'getInteraction')
-  getInteractionThread.start()
-
   runStatsHttpThread = threading.Thread(target = runHttpServer, name = 'runStatsHttpServer')
-  runStatsHttpThread.start()
-
   processFileHttpThread = threading.Thread(target = processFile, name = 'processFile')
+
+  # 开启线程
+  getStatsTread.start()
+  getInteractionThread.start()
+  runStatsHttpThread.start()
   processFileHttpThread.start()
-
-
-
   
+  getStatsTread.join()
+  getInteractionThread.join()
+  runStatsHttpThread.join()
+  processFileHttpThread.join()
