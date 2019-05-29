@@ -334,3 +334,11 @@ I帧是关键帧，属于帧内压缩；P是向前搜索；B是双向搜索；�
 2.H264  
 1）图像以序列为单位组织，一个序列是一段图像编码后的数据流，以I帧开始，到下一个I帧结束  
 2）每个序列的第一个图像叫做IDR图像，IDR图像都是I帧图像，IDR是立即刷新图像，立即刷新参考帧，将已解码的数据全部输出或者抛弃  
+3.dts or pts or basetime  
+1)  
+pts:Presentation Time Stamp   
+dts:Decode Time Stamp  
+basetime:时间基,也即将1s分成多少份,一般为1/90000  
+2)  
+av_q2d(time_base):每个刻度是多少秒   
+pts * av_q2d(time_base):帧显示时间戳   
